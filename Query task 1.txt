@@ -1,0 +1,146 @@
+/* Calculate average of monthly active user */
+select year, round(avg(amount),2) as MonthlyActiveUser
+from 
+(/* calculate monthly amount of customer for each year */
+select 
+	date_part('year', od.order_purchase_timestamp) as Year,
+	date_part('month', od.order_purchase_timestamp) as Month,
+	count(distinct(cd.customer_unique_id)) as amount
+from orders_dataset as od
+join customers_dataset as cd on od.customer_id=cd.customer_id
+group by 1,2
+)as monthlycust
+group by year
+
+Menampilkan jumlah customer baru pada masing-masing tahun (Hint: Pelanggan baru adalah pelanggan yang melakukan order pertama kali)
+select /*calculate first customer for each year*/
+date_part('year', first_cust.first_purchase) as Year,
+count(distinct(first_cust.customer_unique_id)) as amount
+from
+(/*column for first customer*/
+select 
+	cd.customer_unique_id,
+	min(od.order_purchase_timestamp) as first_purchase
+from orders_dataset as od
+join customers_dataset as cd on od.customer_id=cd.customer_id
+group by 1
+) as first_cust
+group by 1
+
+Menampilkan jumlah customer yang melakukan pembelian lebih dari satu kali (repeat order) pada masing-masing tahun (Hint: Pelanggan yang melakukan repeat order adalah pelanggan yang melakukan order lebih dari 1 kali)
+select 
+	Year,
+	count(distinct(freq_purchase.customer_unique_id))
+from
+( /*calculate freq customer purchase for each year*/
+select 
+	date_part('year', od.order_purchase_timestamp) as Year,
+	cd.customer_unique_id,
+	count (1) as freq
+from orders_dataset as od
+join customers_dataset as cd on od.customer_id=cd.customer_id 
+group by 1,2
+having count (1)>1
+)as freq_purchase
+group by 1
+
+Menampilkan rata-rata jumlah order yang dilakukan customer untuk masing-masing tahun (Hint: Hitung frekuensi order (berapa kali order) untuk masing-masing customer terlebih dahulu)
+select 
+	Year,
+	round(avg(freq_purchase.freq),2)
+from
+( /*calculate freq customer purchase for each year*/
+select 
+	date_part('year', od.order_purchase_timestamp) as Year,
+	cd.customer_unique_id,
+	count (1) as freq
+from orders_dataset as od
+join customers_dataset as cd on od.customer_id=cd.customer_id 
+group by 1,2
+)as freq_purchase
+group by 1
+
+Menggabungkan ketiga metrik yang telah berhasil ditampilkan menjadi satu tampilan tabel
+with
+calc_mau as
+(
+/* Calculate average of monthly active user */
+select year, round(avg(amount),2) as MonthlyActiveUser
+from 
+(/* calculate monthly amount of customer for each year */
+select 
+	date_part('year', od.order_purchase_timestamp) as Year,
+	date_part('month', od.order_purchase_timestamp) as Month,
+	count(distinct(cd.customer_unique_id)) as amount
+from orders_dataset as od
+join customers_dataset as cd on od.customer_id=cd.customer_id
+group by 1,2
+)as monthlycust
+group by year
+),
+
+calc_newcust as
+(
+select /*calculate first customer for each year*/
+date_part('year', first_cust.first_purchase) as Year,
+count(distinct(first_cust.customer_unique_id)) as amount
+from
+(/*column for first customer*/
+select 
+	cd.customer_unique_id,
+	min(od.order_purchase_timestamp) as first_purchase
+from orders_dataset as od
+join customers_dataset as cd on od.customer_id=cd.customer_id
+group by 1
+) as first_cust
+group by 1
+),
+
+calc_repeat_cust as
+(
+select 
+	Year,
+	count(distinct(freq_purchase.customer_unique_id)) as repeat_cust
+from
+( /*calculate freq customer purchase for each year*/
+select 
+	date_part('year', od.order_purchase_timestamp) as Year,
+	cd.customer_unique_id,
+	count (1) as freq
+from orders_dataset as od
+join customers_dataset as cd on od.customer_id=cd.customer_id 
+group by 1,2
+having count (1)>1
+)as freq_purchase
+group by 1
+),
+calc_freq as
+(
+select 
+	Year,
+	round(avg(freq_purchase.freq),2) as freq_cust
+from
+( /*calculate freq customer purchase for each year*/
+select 
+	date_part('year', od.order_purchase_timestamp) as Year,
+	cd.customer_unique_id,
+	count (1) as freq
+from orders_dataset as od
+join customers_dataset as cd on od.customer_id=cd.customer_id 
+group by 1,2
+)as freq_purchase
+group by 1
+)
+
+select
+	mau.Year,
+	mau.MonthlyActiveUser,
+	newcust.amount as amount_new_cust,
+	crc.repeat_cust,
+	cf.freq_cust as average_freq_purchase
+from calc_mau as mau
+join calc_newcust as newcust on mau.Year=newcust.Year
+join calc_repeat_cust as crc on mau.Year=crc.Year
+join calc_freq as cf on mau.Year=cf.Year
+
+

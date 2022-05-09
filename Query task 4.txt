@@ -1,0 +1,23 @@
+--Menampilkan jumlah penggunaan masing-masing tipe pembayaran secara all time diurutkan dari yang terfavorit (Hint: Perhatikan struktur (kolom-kolom apa saja) dari tabel akhir yang ingin didapatkan)
+select payment_type, count(order_id) from order_payments_dataset
+group by 1
+order by 2 desc
+
+--Menampilkan detail informasi jumlah penggunaan masing-masing tipe pembayaran untuk setiap tahun (Hint: Perhatikan struktur (kolom-kolom apa saja) dari tabel akhir yang ingin didapatkan)
+--Menampilkan detail informasi jumlah penggunaan masing-masing tipe pembayaran untuk setiap tahun (Hint: Perhatikan struktur (kolom-kolom apa saja) dari tabel akhir yang ingin didapatkan)
+select
+	a.payment_type,
+	sum(case when year='2016' then counter else 0 end) as y_2016,
+	sum(case when year='2017' then counter else 0 end) as y_2017,
+	sum(case when year='2018' then counter else 0 end) as y_2018
+from 
+(
+select 
+	date_part('year', od.order_purchase_timestamp) as Year,
+	payment_type,
+	count(od.order_id) as counter
+from orders_dataset as od
+join order_payments_dataset as opd on od.order_id=opd.order_id
+group by 1,2
+) as a
+group by 1

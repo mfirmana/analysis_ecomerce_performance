@@ -1,0 +1,165 @@
+Membuat tabel yang berisi informasi pendapatan/revenue perusahaan total untuk masing-masing tahun (Hint: Revenue adalah harga barang dan juga biaya kirim. Pastikan juga melakukan filtering terhadap order status yang tepat untuk menghitung pendapatan)
+create table total_company_revenue_per_year as
+select
+	date_part('year', od.order_purchase_timestamp) as Year,
+	sum(rev_per_order.revenue_perorder) as company_revenue
+from orders_dataset as od
+join 
+(
+select
+	order_id,
+	sum(price+freight_value) as revenue_perorder
+from order_items_dataset
+group by 1
+) as rev_per_order on od.order_id=rev_per_order.order_id
+where order_status='delivered'
+group by 1
+
+Membuat tabel yang berisi informasi jumlah cancel order total untuk masing-masing tahun (Hint: Perhatikan filtering terhadap order status yang tepat untuk menghitung jumlah cancel order)
+
+create table total_canceled_orders_per_year as
+select 
+	date_part('year', order_purchase_timestamp) as Year,
+	count(order_id) as cancelled_order
+from orders_dataset
+where order_status='canceled'
+group by 1
+
+Membuat tabel yang berisi nama kategori produk yang memberikan pendapatan total tertinggi untuk masing-masing tahun (Hint: Perhatikan penggunaan window function dan juga filtering yang dilakukan)
+create table top_product_category_per_year as
+select 
+	tab.product_category_name,
+	tab.Year,
+	tab.rev
+from 
+(
+select 
+	date_part('year', od.order_purchase_timestamp) as Year,
+	pd.product_category_name,
+	sum(oid.price+oid.freight_value) as rev,
+	rank() over(partition by
+				date_part('year', od.order_purchase_timestamp)
+				order by
+				sum(oid.price+oid.freight_value) desc)as rank_prod
+from orders_dataset as od
+join order_items_dataset as oid on od.order_id=oid.order_id
+join product_dataset as pd on oid.product_id=pd.product_id
+where od.order_status='delivered'
+group by 1,2
+) as tab
+where rank_prod=1
+
+Membuat tabel yang berisi nama kategori produk yang memiliki jumlah cancel order terbanyak untuk masing-masing tahun (Hint: Perhatikan penggunaan window function dan juga filtering yang dilakukan)
+--create table top_canceled_product_category_per_year as
+select 
+	tab.product_category_name,
+	tab.Year,
+	tab.canceled
+from 
+(
+select 
+	date_part('year', od.order_purchase_timestamp) as Year,
+	pd.product_category_name,
+	count(od.order_id) as canceled,
+	rank() over(partition by
+				date_part('year', od.order_purchase_timestamp)
+				order by
+				count(od.order_id) desc)as rank_prod
+from orders_dataset as od
+join order_items_dataset as oid on od.order_id=oid.order_id
+join product_dataset as pd on oid.product_id=pd.product_id
+where od.order_status='canceled'
+group by 1,2
+) as tab
+where rank_prod=1
+
+Menggabungkan informasi-informasi yang telah didapatkan ke dalam satu tampilan tabel (Hint: Perhatikan teknik join yang dilakukan serta kolom-kolom yang dipilih)
+--Membuat tabel yang berisi informasi pendapatan/revenue perusahaan total untuk masing-masing tahun (Hint: Revenue adalah harga barang dan juga biaya kirim. Pastikan juga melakukan filtering terhadap order status yang tepat untuk menghitung pendapatan)
+create table total_revenue_per_year as
+select
+	date_part('year', od.order_purchase_timestamp) as Year,
+	sum(rev_per_order.revenue_perorder) as company_revenue
+from orders_dataset as od
+join 
+(
+select
+	order_id,
+	sum(price+freight_value) as revenue_perorder
+from order_items_dataset
+group by 1
+) as rev_per_order on od.order_id=rev_per_order.order_id
+where order_status='delivered'
+group by 1;
+
+--Membuat tabel yang berisi informasi jumlah cancel order total untuk masing-masing tahun (Hint: Perhatikan filtering terhadap order status yang tepat untuk menghitung jumlah cancel order)
+
+create table total_canceled_per_year as
+select 
+	date_part('year', order_purchase_timestamp) as Year,
+	count(order_id) as cancelled_order
+from orders_dataset
+where order_status='canceled'
+group by 1;
+
+--Membuat tabel yang berisi nama kategori produk yang memberikan pendapatan total tertinggi untuk masing-masing tahun (Hint: Perhatikan penggunaan window function dan juga filtering yang dilakukan)
+create table top_product_per_year as
+select 
+	tab.product_category_name,
+	tab.Year,
+	tab.rev
+from 
+(
+select 
+	date_part('year', od.order_purchase_timestamp) as Year,
+	pd.product_category_name,
+	sum(oid.price+oid.freight_value) as rev,
+	rank() over(partition by
+				date_part('year', od.order_purchase_timestamp)
+				order by
+				sum(oid.price+oid.freight_value) desc)as rank_prod
+from orders_dataset as od
+join order_items_dataset as oid on od.order_id=oid.order_id
+join product_dataset as pd on oid.product_id=pd.product_id
+where od.order_status='delivered'
+group by 1,2
+) as tab
+where rank_prod=1;
+
+--Membuat tabel yang berisi nama kategori produk yang memiliki jumlah cancel order terbanyak untuk masing-masing tahun (Hint: Perhatikan penggunaan window function dan juga filtering yang dilakukan)
+create table top_canceled_product_per_year as
+select 
+	tab.product_category_name,
+	tab.Year,
+	tab.canceled
+from 
+(
+select 
+	date_part('year', od.order_purchase_timestamp) as Year,
+	pd.product_category_name,
+	count(od.order_id) as canceled,
+	rank() over(partition by
+				date_part('year', od.order_purchase_timestamp)
+				order by
+				count(od.order_id) desc)as rank_prod
+from orders_dataset as od
+join order_items_dataset as oid on od.order_id=oid.order_id
+join product_dataset as pd on oid.product_id=pd.product_id
+where od.order_status='canceled'
+group by 1,2
+) as tab
+where rank_prod=1;
+
+--Menggabungkan informasi-informasi yang telah didapatkan ke dalam satu tampilan tabel (Hint: Perhatikan teknik join yang dilakukan serta kolom-kolom yang dipilih)
+select
+	a.year,
+	c.product_category_name as top_product,
+	c.rev as category_revenue,
+	a.company_revenue,
+	d.product_category_name as top_canceled_product,
+	d.canceled as num_canceled,
+	b.cancelled_order as orders_num_canceled_yearly
+	
+from total_revenue_per_year as a
+join total_canceled_per_year as b on a.year=b.year
+join top_product_per_year as c on c.year=b.year
+join top_canceled_product_per_year as d on d.year=c.year
